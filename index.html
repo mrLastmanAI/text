@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Генератор статей — AI Text Service</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="header__title">AI Text Service</h1>
+      <p class="header__subtitle">Генерация статей с помощью нейросетей</p>
+    </header>
+
+    <!-- Step Progress Bar -->
+    <nav class="stepper">
+      <div class="stepper__item stepper__item--active" data-step="1">
+        <div class="stepper__circle">1</div>
+        <span class="stepper__label">Подготовка</span>
+      </div>
+      <div class="stepper__line"></div>
+      <div class="stepper__item" data-step="2">
+        <div class="stepper__circle">2</div>
+        <span class="stepper__label">Генерация</span>
+      </div>
+      <div class="stepper__line"></div>
+      <div class="stepper__item" data-step="3">
+        <div class="stepper__circle">3</div>
+        <span class="stepper__label">Факт-чек</span>
+      </div>
+      <div class="stepper__line"></div>
+      <div class="stepper__item" data-step="4">
+        <div class="stepper__circle">4</div>
+        <span class="stepper__label">Хуманизация</span>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="content">
+
+      <!-- ===================== STEP 1: Подготовка ===================== -->
+      <section class="step step--active" id="step-1">
+        <h2 class="step__title">Шаг 1 — Подготовка</h2>
+
+        <div class="form-group">
+          <label class="label" for="source-type">Источник данных</label>
+          <select class="select" id="source-type">
+            <option value="" disabled selected>Выберите источник...</option>
+            <option value="youtube">Ссылка на YouTube</option>
+            <option value="text">Текст (заполнить вручную)</option>
+          </select>
+        </div>
+
+        <!-- YouTube Input -->
+        <div class="source-block" id="source-youtube" style="display:none;">
+          <div class="form-group">
+            <label class="label" for="youtube-url">Ссылка на YouTube видео</label>
+            <input class="input" type="url" id="youtube-url" placeholder="https://www.youtube.com/watch?v=...">
+          </div>
+        </div>
+
+        <!-- Text Input Fields -->
+        <div class="source-block" id="source-text" style="display:none;">
+          <div class="form-group">
+            <label class="label" for="article-topic">Тема статьи <span class="required">*</span></label>
+            <input class="input" type="text" id="article-topic" placeholder="Например: Как выбрать CRM для малого бизнеса">
+          </div>
+
+          <div class="form-group">
+            <label class="label" for="target-audience">Целевая аудитория <span class="required">*</span></label>
+            <textarea class="textarea" id="target-audience" rows="2" placeholder="Кто эти люди, уровень знаний, возраст, профессия..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="label" for="article-goal">Основная цель статьи <span class="required">*</span></label>
+            <select class="select" id="article-goal">
+              <option value="" disabled selected>Выберите цель...</option>
+              <option value="traffic">Привлечь трафик</option>
+              <option value="warmup">Прогреть к покупке</option>
+              <option value="explain">Объяснить сложную тему</option>
+              <option value="blog">Личный блог</option>
+              <option value="other">Другое</option>
+            </select>
+            <input class="input input--hidden" type="text" id="article-goal-custom" placeholder="Укажите цель..." style="display:none;">
+          </div>
+
+          <div class="form-group">
+            <label class="label" for="article-type">Тип статьи <span class="required">*</span></label>
+            <select class="select" id="article-type">
+              <option value="" disabled selected>Выберите тип...</option>
+              <option value="review">Обзор</option>
+              <option value="howto">Инструкция</option>
+              <option value="analytics">Аналитика</option>
+              <option value="longread">Лонгрид</option>
+              <option value="case">Кейс</option>
+              <option value="news">Новостная заметка</option>
+              <option value="other">Другое</option>
+            </select>
+            <input class="input input--hidden" type="text" id="article-type-custom" placeholder="Укажите тип..." style="display:none;">
+          </div>
+
+          <div class="form-group">
+            <label class="label" for="platform">Площадка публикации <span class="required">*</span></label>
+            <select class="select" id="platform">
+              <option value="" disabled selected>Выберите площадку...</option>
+              <option value="website">Сайт</option>
+              <option value="blog">Блог</option>
+              <option value="social">Соцсети</option>
+              <option value="media">СМИ</option>
+              <option value="other">Другое</option>
+            </select>
+            <input class="input input--hidden" type="text" id="platform-custom" placeholder="Укажите площадку..." style="display:none;">
+          </div>
+
+          <div class="form-group">
+            <label class="label" for="volume">Желаемый объём <span class="required">*</span></label>
+            <input class="input" type="text" id="volume" placeholder="Например: 5000 знаков или 800 слов">
+          </div>
+
+          <div class="form-group form-group--checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" id="collect-info" class="checkbox">
+              <span class="checkbox-custom"></span>
+              <span>Сбор информации для статьи (ChatGPT Research)</span>
+            </label>
+          </div>
+        </div>
+
+        <button class="btn btn--primary" id="btn-step1-submit" disabled>Отправить</button>
+
+        <!-- YouTube Transcription Result -->
+        <div class="result-block" id="youtube-result" style="display:none;">
+          <h3 class="result-block__title">Транскрипция видео</h3>
+          <div class="result-block__content" id="youtube-transcript"></div>
+
+          <div class="youtube-params" style="margin-top: 1.25rem;">
+            <h4 style="margin-bottom: 0.75rem;">Параметры статьи (опционально)</h4>
+
+            <div class="form-group">
+              <label class="label" for="yt-article-topic">Тема статьи</label>
+              <input class="input" type="text" id="yt-article-topic" placeholder="Оставьте пустым — тема будет определена из видео">
+            </div>
+
+            <div class="form-group">
+              <label class="label" for="yt-target-audience">Целевая аудитория</label>
+              <textarea class="textarea" id="yt-target-audience" rows="2" placeholder="Кто эти люди, уровень знаний, возраст, профессия..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="label" for="yt-article-goal">Основная цель статьи</label>
+              <select class="select" id="yt-article-goal">
+                <option value="" selected>Не указана</option>
+                <option value="traffic">Привлечь трафик</option>
+                <option value="warmup">Прогреть к покупке</option>
+                <option value="explain">Объяснить сложную тему</option>
+                <option value="blog">Личный блог</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="label" for="yt-article-type">Тип статьи</label>
+              <select class="select" id="yt-article-type">
+                <option value="" selected>Не указан</option>
+                <option value="review">Обзор</option>
+                <option value="howto">Инструкция</option>
+                <option value="analytics">Аналитика</option>
+                <option value="longread">Лонгрид</option>
+                <option value="case">Кейс</option>
+                <option value="news">Новостная заметка</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="label" for="yt-volume">Желаемый объём</label>
+              <input class="input" type="text" id="yt-volume" placeholder="Например: 5000 знаков">
+            </div>
+
+            <div class="form-group form-group--checkbox">
+              <label class="checkbox-label">
+                <input type="checkbox" id="yt-collect-info" class="checkbox">
+                <span class="checkbox-custom"></span>
+                <span>Сбор информации для статьи (ChatGPT Research)</span>
+              </label>
+            </div>
+          </div>
+
+          <button class="btn btn--primary" id="btn-youtube-continue" style="margin-top: 1rem;">Продолжить к генерации</button>
+        </div>
+      </section>
+
+      <!-- ===================== STEP 2: Генерация ===================== -->
+      <section class="step" id="step-2" style="display:none;">
+        <h2 class="step__title">Шаг 2 — Генерация статьи</h2>
+
+        <!-- Sub-step 2.1: Plan -->
+        <div class="substep" id="substep-plan">
+          <h3 class="substep__title">2.1 — Создание структуры статьи</h3>
+          <div class="loading" id="plan-loading" style="display:none;">
+            <div class="spinner"></div>
+            <span>Claude создаёт план статьи...</span>
+          </div>
+          <div class="result-block" id="plan-result" style="display:none;">
+            <h4 class="result-block__title">План статьи</h4>
+            <div class="result-block__content" id="plan-text"></div>
+            <div class="action-buttons">
+              <button class="btn btn--success" id="btn-plan-approve">Утвердить</button>
+              <button class="btn btn--secondary" id="btn-plan-edit">Внести правки</button>
+            </div>
+          </div>
+          <div class="edit-block" id="plan-edit-block" style="display:none;">
+            <div class="form-group">
+              <label class="label" for="plan-corrections">Какие правки внести?</label>
+              <textarea class="textarea" id="plan-corrections" rows="4" placeholder="Опишите, что нужно изменить в плане..."></textarea>
+            </div>
+            <button class="btn btn--primary" id="btn-plan-send-edit">Отправить правки</button>
+          </div>
+        </div>
+
+        <!-- Sub-step 2.2: Research -->
+        <div class="substep" id="substep-research" style="display:none;">
+          <h3 class="substep__title">2.2 — Сбор информации (ChatGPT Research)</h3>
+          <div class="loading" id="research-loading" style="display:none;">
+            <div class="spinner"></div>
+            <span>ChatGPT Research собирает информацию...</span>
+          </div>
+          <div class="result-block" id="research-result" style="display:none;">
+            <h4 class="result-block__title">Собранная информация</h4>
+            <div class="result-block__content" id="research-text"></div>
+            <div class="action-buttons">
+              <button class="btn btn--success" id="btn-research-approve">Утвердить</button>
+              <button class="btn btn--secondary" id="btn-research-edit">Внести правки</button>
+            </div>
+          </div>
+          <div class="edit-block" id="research-edit-block" style="display:none;">
+            <div class="form-group">
+              <label class="label" for="research-corrections">Какие правки внести?</label>
+              <textarea class="textarea" id="research-corrections" rows="4" placeholder="Опишите, что нужно изменить..."></textarea>
+            </div>
+            <button class="btn btn--primary" id="btn-research-send-edit">Отправить правки</button>
+          </div>
+        </div>
+
+        <!-- Sub-step 2.3: Style Selection -->
+        <div class="substep" id="substep-style" style="display:none;">
+          <h3 class="substep__title">2.3 — Выбор стиля написания</h3>
+          <div class="form-group">
+            <label class="label" for="writing-style">Стиль написания статьи</label>
+            <select class="select" id="writing-style">
+              <option value="" disabled selected>Выберите стиль...</option>
+              <option value="egorka">Егорка</option>
+              <option value="not-egorka">Не Егорка</option>
+            </select>
+          </div>
+          <button class="btn btn--primary" id="btn-style-submit" disabled>Отправить на генерацию</button>
+        </div>
+
+        <!-- Sub-step 2.4: Article Generation -->
+        <div class="substep" id="substep-article" style="display:none;">
+          <h3 class="substep__title">2.4 — Генерация статьи</h3>
+          <div class="loading" id="article-loading" style="display:none;">
+            <div class="spinner"></div>
+            <span>Claude генерирует статью...</span>
+          </div>
+          <div class="result-block" id="article-result" style="display:none;">
+            <h4 class="result-block__title">Готовая статья</h4>
+            <div class="result-block__content" id="article-text"></div>
+            <div class="action-buttons">
+              <button class="btn btn--primary" id="btn-create-html">Создать HTML</button>
+              <button class="btn btn--success" id="btn-to-factcheck">Далее: Факт-чек</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-step 2.5: HTML Conversion -->
+        <div class="substep" id="substep-html" style="display:none;">
+          <h3 class="substep__title">2.5 — HTML-версия</h3>
+          <div class="loading" id="html-loading" style="display:none;">
+            <div class="spinner"></div>
+            <span>ChatGPT форматирует HTML...</span>
+          </div>
+          <div class="result-block" id="html-result" style="display:none;">
+            <h4 class="result-block__title">HTML-версия статьи</h4>
+            <div class="tabs">
+              <button class="tab tab--active" data-tab="preview">Превью</button>
+              <button class="tab" data-tab="code">HTML-код</button>
+            </div>
+            <div class="tab-content tab-content--active" id="html-preview"></div>
+            <div class="tab-content" id="html-code">
+              <pre><code id="html-source"></code></pre>
+            </div>
+            <div class="action-buttons">
+              <button class="btn btn--outline" id="btn-copy-html">Копировать HTML</button>
+              <button class="btn btn--success" id="btn-to-factcheck-html">Далее: Факт-чек</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== STEP 3: Факт-чек ===================== -->
+      <section class="step" id="step-3" style="display:none;">
+        <h2 class="step__title">Шаг 3 — Факт-чек</h2>
+        <div class="loading" id="factcheck-loading" style="display:none;">
+          <div class="spinner"></div>
+          <span>Gemini проводит факт-чек текста...</span>
+        </div>
+        <div class="result-block" id="factcheck-ok" style="display:none;">
+          <div class="status-badge status-badge--success">Факт-чек пройден успешно</div>
+          <p>Ошибок и несоответствий не обнаружено.</p>
+          <button class="btn btn--success" id="btn-to-humanize">Далее: Хуманизация</button>
+        </div>
+        <div class="result-block" id="factcheck-errors" style="display:none;">
+          <div class="status-badge status-badge--error">Обнаружены несоответствия</div>
+          <h4 class="result-block__title">Список ошибок</h4>
+          <div class="result-block__content" id="factcheck-errors-list"></div>
+          <div class="edit-block" id="factcheck-edit-block">
+            <div class="form-group">
+              <label class="label" for="factcheck-manual-edit">Редактировать список ошибок (опционально)</label>
+              <textarea class="textarea" id="factcheck-manual-edit" rows="4" placeholder="Отредактируйте список ошибок, если нужно..."></textarea>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button class="btn btn--primary" id="btn-factcheck-fix">Отправить в Claude на исправление</button>
+            <button class="btn btn--secondary" id="btn-factcheck-recheck">Перепроверить текст</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== STEP 4: Хуманизация ===================== -->
+      <section class="step" id="step-4" style="display:none;">
+        <h2 class="step__title">Шаг 4 — Хуманизация</h2>
+        <div class="loading" id="humanize-loading" style="display:none;">
+          <div class="spinner"></div>
+          <span>Claude проводит хуманизацию текста...</span>
+        </div>
+        <div class="result-block" id="humanize-result" style="display:none;">
+          <div class="status-badge status-badge--success">Текст готов!</div>
+          <h4 class="result-block__title">Финальный текст</h4>
+          <div class="result-block__content" id="humanize-text"></div>
+          <div class="export-panel">
+            <h4>Экспорт</h4>
+            <div class="action-buttons">
+              <button class="btn btn--primary" id="btn-copy-text">Копировать текст</button>
+              <button class="btn btn--secondary" id="btn-download-txt">Скачать .txt</button>
+              <button class="btn btn--secondary" id="btn-download-html">Скачать .html</button>
+              <button class="btn btn--outline" id="btn-export-gdocs">Экспорт в Google Docs</button>
+            </div>
+          </div>
+          <div class="action-buttons" style="margin-top: 2rem;">
+            <button class="btn btn--outline" id="btn-start-over">Начать заново</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
