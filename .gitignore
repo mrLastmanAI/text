@@ -1,0 +1,13 @@
+# API secrets — NEVER commit
+api/config.php
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

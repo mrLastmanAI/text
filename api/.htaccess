@@ -1,0 +1,8 @@
+# Запрещаем прямой доступ к config.php и helpers.php
+<FilesMatch "^(config|helpers)\.php$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Запрещаем листинг директории
+Options -Indexes
