@@ -177,6 +177,35 @@ const ApiService = (() => {
     return post('humanize', { text: articleText });
   }
 
+  // ── 8. WordPress ─────────────────────────────────────────────────
+
+  /**
+   * Получить список категорий WordPress.
+   * @returns {Promise<{categories: Array<{id: number, name: string, slug: string}>}>}
+   */
+  async function wpGetCategories() {
+    return post('wp-publish', { action: 'categories' });
+  }
+
+  /**
+   * Опубликовать статью в WordPress.
+   * @param {object} data
+   * @param {string} data.title
+   * @param {string} data.content - HTML-контент
+   * @param {string} data.status - 'draft' | 'publish' | 'pending'
+   * @param {number[]} [data.categories]
+   * @returns {Promise<{id: number, link: string, status: string, title: string}>}
+   */
+  async function wpPublish(data) {
+    return post('wp-publish', {
+      action: 'publish',
+      title: data.title,
+      content: data.content,
+      status: data.status || 'draft',
+      categories: data.categories || [],
+    });
+  }
+
   // ── Public API ─────────────────────────────────────────────────
   return {
     transcribeYouTube,
@@ -189,5 +218,7 @@ const ApiService = (() => {
     factCheck,
     fixErrors,
     humanize,
+    wpGetCategories,
+    wpPublish,
   };
 })();

@@ -347,6 +347,36 @@
               <button class="btn btn--outline" id="btn-export-gdocs">Экспорт в Google Docs</button>
             </div>
           </div>
+
+          <!-- WordPress Publishing -->
+          <div class="export-panel" style="margin-top: 1rem; border-color: #86efac;">
+            <h4>Публикация в WordPress</h4>
+            <div class="form-group">
+              <label class="label" for="wp-title">Заголовок записи</label>
+              <input class="input" type="text" id="wp-title" placeholder="Заголовок для WordPress">
+            </div>
+            <div class="form-group">
+              <label class="label" for="wp-category">Категория</label>
+              <select class="select" id="wp-category">
+                <option value="" selected>Без категории</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="label" for="wp-status">Статус публикации</label>
+              <select class="select" id="wp-status">
+                <option value="draft" selected>Черновик</option>
+                <option value="pending">На модерации</option>
+                <option value="publish">Опубликовать сразу</option>
+              </select>
+            </div>
+            <div class="action-buttons">
+              <button class="btn btn--success" id="btn-wp-publish">Опубликовать в WordPress</button>
+            </div>
+            <div class="result-block" id="wp-publish-result" style="display:none; margin-top: 0.75rem;">
+              <div class="status-badge status-badge--success" id="wp-result-badge"></div>
+              <p id="wp-result-link"></p>
+            </div>
+          </div>
           <div class="action-buttons" style="margin-top: 2rem;">
             <button class="btn btn--outline" id="btn-start-over">Начать заново</button>
           </div>

@@ -6,6 +6,8 @@
  *  - CORS headers
  *  - JSON request parsing
  *  - cURL wrapper for external API calls
+ *  - Unified LLM call via OpenRouter (Claude, GPT, Gemini — один ключ)
+ *  - WordPress REST API helper
  *  - JSON response helpers
  *  - Input sanitization
  */
@@ -44,9 +46,6 @@ function getConfig(): array
 
 // ── Request Parsing ──────────────────────────────────────────────
 
-/**
- * Parse JSON body from the incoming request.
- */
 function getJsonInput(): array
 {
     $raw = file_get_contents('php://input');
@@ -57,9 +56,6 @@ function getJsonInput(): array
     return $data;
 }
 
-/**
- * Require specific fields in the input.
- */
 function requireFields(array $input, array $fields): void
 {
     $missing = [];
@@ -83,15 +79,8 @@ function sanitize(string $value): string
 // ── cURL Wrapper ─────────────────────────────────────────────────
 
 /**
- * Make an HTTP request via cURL.
- *
- * @param string $url     Full URL
- * @param array  $options [
- *     'method'  => 'POST',
- *     'headers' => ['Header: Value', ...],
- *     'body'    => string|null,
- *     'timeout' => int (seconds, default 120),
- * ]
+ * @param string $url
+ * @param array  $options ['method', 'headers', 'body', 'timeout']
  * @return array ['status' => int, 'body' => string, 'json' => mixed]
  */
 function httpRequest(string $url, array $options = []): array
@@ -132,103 +121,144 @@ function httpRequest(string $url, array $options = []): array
     ];
 }
 
-// ── Claude API Helper ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  LLM через OpenRouter (единый ключ, OpenAI-совместимый формат)
+// ══════════════════════════════════════════════════════════════════
 
-function callClaude(string $systemPrompt, string $userMessage): string
+/**
+ * Вызов любой LLM через OpenRouter.
+ *
+ * @param string $model   Ключ из config['models']: 'claude', 'gpt', 'gemini'
+ * @param string $system  System prompt
+ * @param string $user    User message
+ * @param int    $maxTokens
+ * @return string  Текст ответа
+ */
+function callLLM(string $model, string $system, string $user, int $maxTokens = 8192): string
 {
-    $cfg = getConfig()['claude'];
+    $cfg      = getConfig();
+    $orCfg    = $cfg['openrouter'];
+    $modelId  = $cfg['models'][$model] ?? null;
 
-    if (empty($cfg['api_key'])) {
-        sendError('Claude API key не настроен в config.php', 500);
+    if (empty($orCfg['api_key'])) {
+        sendError('OpenRouter API key не настроен в config.php', 500);
+    }
+    if (!$modelId) {
+        sendError("Модель '{$model}' не найдена в config.php['models']", 500);
     }
 
-    $res = httpRequest($cfg['base_url'] . '/messages', [
+    $res = httpRequest($orCfg['base_url'] . '/chat/completions', [
         'method'  => 'POST',
         'headers' => [
             'Content-Type: application/json',
-            'x-api-key: ' . $cfg['api_key'],
-            'anthropic-version: 2023-06-01',
+            'Authorization: Bearer ' . $orCfg['api_key'],
         ],
         'body' => json_encode([
-            'model'      => $cfg['model'],
-            'max_tokens' => 8192,
-            'system'     => $systemPrompt,
+            'model'      => $modelId,
             'messages'   => [
-                ['role' => 'user', 'content' => $userMessage],
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user',   'content' => $user],
             ],
+            'max_tokens' => $maxTokens,
         ]),
     ]);
 
     if ($res['status'] !== 200) {
         $errMsg = $res['json']['error']['message'] ?? $res['body'];
-        sendError('Claude API ошибка: ' . $errMsg, 502);
-    }
-
-    return $res['json']['content'][0]['text'] ?? '';
-}
-
-// ── OpenAI API Helper ────────────────────────────────────────────
-
-function callOpenAI(string $systemPrompt, string $userMessage, ?string $model = null): string
-{
-    $cfg = getConfig()['openai'];
-
-    if (empty($cfg['api_key'])) {
-        sendError('OpenAI API key не настроен в config.php', 500);
-    }
-
-    $res = httpRequest($cfg['base_url'] . '/chat/completions', [
-        'method'  => 'POST',
-        'headers' => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $cfg['api_key'],
-        ],
-        'body' => json_encode([
-            'model'    => $model ?? $cfg['model'],
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => $userMessage],
-            ],
-            'max_tokens' => 8192,
-        ]),
-    ]);
-
-    if ($res['status'] !== 200) {
-        $errMsg = $res['json']['error']['message'] ?? $res['body'];
-        sendError('OpenAI API ошибка: ' . $errMsg, 502);
+        sendError("OpenRouter ({$modelId}) ошибка: " . $errMsg, 502);
     }
 
     return $res['json']['choices'][0]['message']['content'] ?? '';
 }
 
-// ── Gemini API Helper ────────────────────────────────────────────
+/**
+ * Короткие алиасы для обратной совместимости с эндпоинтами.
+ */
+function callClaude(string $system, string $user): string
+{
+    return callLLM('claude', $system, $user);
+}
+
+function callOpenAI(string $system, string $user): string
+{
+    return callLLM('gpt', $system, $user);
+}
 
 function callGemini(string $prompt): string
 {
-    $cfg = getConfig()['gemini'];
+    return callLLM('gemini', 'Ты — полезный AI-ассистент.', $prompt);
+}
 
-    if (empty($cfg['api_key'])) {
-        sendError('Gemini API key не настроен в config.php', 500);
+// ══════════════════════════════════════════════════════════════════
+//  WordPress REST API
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Публикация/обновление записи в WordPress через REST API.
+ *
+ * @param array $postData [
+ *     'title'   => string,
+ *     'content' => string (HTML),
+ *     'status'  => 'draft' | 'publish' | 'pending',
+ *     'categories' => [int, ...],
+ *     'tags'       => [int, ...],
+ * ]
+ * @param int|null $postId  Если указан — обновление существующего поста
+ * @return array  WP REST API response
+ */
+function wpPublish(array $postData, ?int $postId = null): array
+{
+    $cfg = getConfig()['wordpress'];
+
+    if (empty($cfg['site_url']) || empty($cfg['username']) || empty($cfg['app_password'])) {
+        sendError('WordPress не настроен в config.php (site_url, username, app_password)', 500);
     }
 
-    $url = $cfg['base_url'] . '/models/' . $cfg['model'] . ':generateContent?key=' . $cfg['api_key'];
+    $siteUrl = rtrim($cfg['site_url'], '/');
+    $url = $postId
+        ? "{$siteUrl}/wp-json/wp/v2/posts/{$postId}"
+        : "{$siteUrl}/wp-json/wp/v2/posts";
+
+    $auth = base64_encode($cfg['username'] . ':' . $cfg['app_password']);
 
     $res = httpRequest($url, [
-        'method'  => 'POST',
-        'headers' => ['Content-Type: application/json'],
-        'body'    => json_encode([
-            'contents' => [
-                ['parts' => [['text' => $prompt]]],
-            ],
-        ]),
+        'method'  => $postId ? 'PUT' : 'POST',
+        'headers' => [
+            'Content-Type: application/json',
+            'Authorization: Basic ' . $auth,
+        ],
+        'body' => json_encode($postData),
+    ]);
+
+    if ($res['status'] !== 200 && $res['status'] !== 201) {
+        $errMsg = $res['json']['message'] ?? $res['body'];
+        sendError('WordPress API ошибка: ' . $errMsg, 502);
+    }
+
+    return $res['json'];
+}
+
+/**
+ * Получить список категорий WordPress.
+ */
+function wpGetCategories(): array
+{
+    $cfg = getConfig()['wordpress'];
+    $siteUrl = rtrim($cfg['site_url'], '/');
+    $auth = base64_encode($cfg['username'] . ':' . $cfg['app_password']);
+
+    $res = httpRequest("{$siteUrl}/wp-json/wp/v2/categories?per_page=100", [
+        'method'  => 'GET',
+        'headers' => [
+            'Authorization: Basic ' . $auth,
+        ],
     ]);
 
     if ($res['status'] !== 200) {
-        $errMsg = $res['body'];
-        sendError('Gemini API ошибка: ' . $errMsg, 502);
+        return [];
     }
 
-    return $res['json']['candidates'][0]['content']['parts'][0]['text'] ?? '';
+    return $res['json'] ?? [];
 }
 
 // ── Response Helpers ─────────────────────────────────────────────

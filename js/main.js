@@ -484,6 +484,10 @@
       exportToGoogleDocs(AppState.get().finalText);
     });
 
+    // ── WordPress ────────────────────────────────────────────────
+    $('#btn-wp-publish').addEventListener('click', handleWpPublish);
+
+    // ── Start Over ───────────────────────────────────────────────
     $('#btn-start-over').addEventListener('click', () => {
       AppState.reset();
       goToStep(1);
@@ -507,18 +511,101 @@
       enableBtn('#btn-research-approve');
       enableBtn('#btn-research-edit');
 
+      // Reset WordPress
+      hide('#wp-publish-result');
+      $('#wp-title').value = '';
+      $('#wp-category').value = '';
+      $('#wp-status').value = 'draft';
+
       toast('Начинаем заново', 'info');
     });
+  }
+
+  // ── WordPress Publishing ─────────────────────────────────────
+
+  /** Load WP categories when Step 4 becomes visible. */
+  async function loadWpCategories() {
+    try {
+      const result = await ApiService.wpGetCategories();
+      const select = $('#wp-category');
+      // Keep the first "no category" option
+      select.innerHTML = '<option value="" selected>Без категории</option>';
+      (result.categories || []).forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      // WordPress may not be configured — silently ignore
+      console.warn('Не удалось загрузить категории WP:', err.message);
+    }
+  }
+
+  async function handleWpPublish() {
+    const title = $('#wp-title').value.trim();
+    if (!title) {
+      toast('Введите заголовок для WordPress', 'error');
+      $('#wp-title').focus();
+      return;
+    }
+
+    const content = AppState.get().articleHtml || AppState.get().finalText;
+    const status = $('#wp-status').value;
+    const catVal = $('#wp-category').value;
+    const categories = catVal ? [parseInt(catVal, 10)] : [];
+
+    setBtnLoading('#btn-wp-publish', true);
+    hide('#wp-publish-result');
+
+    try {
+      const result = await ApiService.wpPublish({ title, content, status, categories });
+
+      const badge = $('#wp-result-badge');
+      const link = $('#wp-result-link');
+
+      if (result.status === 'publish') {
+        badge.textContent = 'Опубликовано!';
+      } else if (result.status === 'draft') {
+        badge.textContent = 'Черновик создан';
+      } else {
+        badge.textContent = 'Отправлено на модерацию';
+      }
+
+      if (result.link) {
+        link.innerHTML = 'Ссылка: <a href="' + result.link + '" target="_blank" rel="noopener">'
+          + result.link + '</a> (ID: ' + result.id + ')';
+      } else {
+        link.textContent = 'Запись ID: ' + result.id;
+      }
+
+      show('#wp-publish-result');
+      toast('Статья отправлена в WordPress!', 'success');
+    } catch (err) {
+      toast('Ошибка WordPress: ' + err.message, 'error');
+    } finally {
+      setBtnLoading('#btn-wp-publish', false, 'Опубликовать в WordPress');
+    }
   }
 
   async function runHumanize() {
     showLoading('humanize-loading');
     hide('#humanize-result');
 
+    // Load WP categories in parallel with humanization
+    loadWpCategories();
+
     try {
       const result = await ApiService.humanize(AppState.get().article);
       AppState.setFinalText(result.text);
       setResultText('humanize-text', result.text);
+
+      // Pre-fill WP title from article topic
+      const topic = AppState.get().articleParams.topic;
+      if (topic && !$('#wp-title').value) {
+        $('#wp-title').value = topic;
+      }
+
       show('#humanize-result');
       toast('Хуманизация завершена! Текст готов.', 'success');
     } catch (err) {

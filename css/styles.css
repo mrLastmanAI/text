@@ -615,6 +615,17 @@ body {
   }
 }
 
+/* ========== WordPress Result Link ========== */
+#wp-result-link a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+#wp-result-link a:hover {
+  color: var(--color-primary-hover);
+}
+
 /* ========== Source Block Transition ========== */
 .source-block {
   animation: fadeIn 0.25s ease;
