@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram → NotebookLM Converter</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --surface-hover: #1a1a1a;
+            --border: #2a2a2a;
+            --border-hover: #3a3a3a;
+            --text: #e5e5e5;
+            --text-secondary: #888;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            --success: #22c55e;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 560px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 6px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 32px;
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--surface);
+            position: relative;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .drop-zone.has-file {
+            border-color: var(--success);
+            border-style: solid;
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        .drop-zone-text {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .drop-zone-hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--success);
+        }
+
+        .file-info .file-name {
+            font-weight: 600;
+        }
+
+        .file-info .file-size {
+            color: var(--text-secondary);
+        }
+
+        .file-info .remove-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .file-info .remove-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+        }
+
+        .drop-zone input[type="file"] {
+            display: none;
+        }
+
+        /* Settings */
+        .settings-section {
+            margin-top: 24px;
+        }
+
+        .settings-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+
+        .settings-toggle:hover {
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        .settings-toggle .icon {
+            font-size: 1.1rem;
+        }
+
+        .settings-toggle .arrow {
+            margin-left: auto;
+            transition: transform 0.2s;
+            font-size: 0.75rem;
+        }
+
+        .settings-toggle.open .arrow {
+            transform: rotate(180deg);
+        }
+
+        .settings-panel {
+            display: none;
+            margin-top: 8px;
+            padding: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .settings-panel.open {
+            display: block;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        /* Word count selector */
+        .word-count-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .word-count-options label {
+            display: block;
+        }
+
+        .word-count-options input[type="radio"] {
+            display: none;
+        }
+
+        .word-count-options .chip {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .word-count-options .chip:hover {
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        .word-count-options input[type="radio"]:checked + .chip {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Date format */
+        .date-format-options {
+            display: flex;
+            gap: 8px;
+        }
+
+        .date-format-options label {
+            display: block;
+            flex: 1;
+        }
+
+        .date-format-options input[type="radio"] {
+            display: none;
+        }
+
+        .date-format-options .chip {
+            display: block;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .date-format-options .chip:hover {
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        .date-format-options input[type="radio"]:checked + .chip {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            transition: color 0.15s;
+        }
+
+        .checkbox-item:hover {
+            color: var(--text);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1.5px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg);
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+
+        .checkbox-item input[type="checkbox"]:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .checkbox-item input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Convert button */
+        .convert-btn {
+            display: block;
+            width: 100%;
+            margin-top: 24px;
+            padding: 14px 24px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: -0.01em;
+        }
+
+        .convert-btn:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .convert-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .convert-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Results */
+        .results {
+            display: none;
+            margin-top: 24px;
+            padding: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .results-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .results-stats {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .download-all-btn {
+            padding: 8px 16px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .download-all-btn:hover {
+            opacity: 0.9;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: var(--bg);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+
+        .file-item-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-item-icon {
+            font-size: 1.2rem;
+        }
+
+        .file-item-name {
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .file-item-size {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .file-item-download {
+            padding: 6px 12px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .file-item-download:hover {
+            background: var(--accent-glow);
+        }
+
+        /* Progress */
+        .progress-bar {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-track {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .privacy-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 16px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 24px 12px;
+            }
+
+            h1 {
+                font-size: 1.4rem;
+            }
+
+            .drop-zone {
+                padding: 36px 16px;
+            }
+
+            .word-count-options {
+                gap: 6px;
+            }
+
+            .word-count-options .chip {
+                padding: 5px 10px;
+                font-size: 0.78rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Telegram → NotebookLM</h1>
+        <p class="subtitle">Конвертация экспорта чатов Telegram в Markdown для NotebookLM</p>
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="dropZone">
+            <div id="dropContent">
+                <div class="drop-zone-icon">📁</div>
+                <div class="drop-zone-text">Перетащите <strong>result.json</strong> сюда</div>
+                <div class="drop-zone-hint">или нажмите для выбора файла</div>
+            </div>
+            <div class="file-info" id="fileInfo">
+                <span>✅</span>
+                <span class="file-name" id="fileName"></span>
+                <span class="file-size" id="fileSize"></span>
+                <button class="remove-btn" id="removeFile" title="Убрать файл">✕</button>
+            </div>
+            <input type="file" id="fileInput" accept=".json">
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-section">
+            <button class="settings-toggle" id="settingsToggle">
+                <span class="icon">⚙️</span>
+                <span>Настройки</span>
+                <span class="arrow">▼</span>
+            </button>
+            <div class="settings-panel" id="settingsPanel">
+                <!-- Word count -->
+                <div class="setting-group">
+                    <div class="setting-label">Количество слов в файле</div>
+                    <div class="word-count-options">
+                        <label><input type="radio" name="wordCount" value="50000"><span class="chip">50 000</span></label>
+                        <label><input type="radio" name="wordCount" value="100000"><span class="chip">100 000</span></label>
+                        <label><input type="radio" name="wordCount" value="200000" checked><span class="chip">200 000</span></label>
+                        <label><input type="radio" name="wordCount" value="300000"><span class="chip">300 000</span></label>
+                        <label><input type="radio" name="wordCount" value="500000"><span class="chip">500 000</span></label>
+                    </div>
+                </div>
+
+                <!-- Date format -->
+                <div class="setting-group">
+                    <div class="setting-label">Формат даты</div>
+                    <div class="date-format-options">
+                        <label><input type="radio" name="dateFormat" value="eu" checked><span class="chip">14.02.2020</span></label>
+                        <label><input type="radio" name="dateFormat" value="iso"><span class="chip">2020-02-14</span></label>
+                    </div>
+                </div>
+
+                <!-- Metadata -->
+                <div class="setting-group">
+                    <div class="setting-label">Включить в вывод</div>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="optTimestamp" checked>
+                            <span>Время отправки</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="optAuthor" checked>
+                            <span>Имя автора</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="optReactions">
+                            <span>Реакции</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="optPolls">
+                            <span>Опросы</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="optForwarded">
+                            <span>Пересланные сообщения</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Convert button -->
+        <button class="convert-btn" id="convertBtn" disabled>⚡ Конвертировать</button>
+
+        <!-- Progress -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Обработка...</div>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="results-header">
+                <div>
+                    <div class="results-title">Готово!</div>
+                    <div class="results-stats" id="resultsStats"></div>
+                </div>
+                <button class="download-all-btn" id="downloadAllBtn">Скачать всё</button>
+            </div>
+            <div class="file-list" id="fileList"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="privacy-note">🔒 Все данные обрабатываются локально в браузере</div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // DOM elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const dropContent = document.getElementById('dropContent');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const removeFileBtn = document.getElementById('removeFile');
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const convertBtn = document.getElementById('convertBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const results = document.getElementById('results');
+        const resultsStats = document.getElementById('resultsStats');
+        const fileList = document.getElementById('fileList');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+
+        let jsonData = null;
+        let outputFiles = [];
+
+        // ==================== File upload ====================
+
+        dropZone.addEventListener('click', (e) => {
+            if (e.target.id !== 'removeFile') fileInput.click();
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (file) handleFile(file);
+        });
+
+        removeFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearFile();
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.json')) {
+                alert('Пожалуйста, выберите JSON-файл');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    jsonData = JSON.parse(e.target.result);
+                    if (!jsonData.messages || !Array.isArray(jsonData.messages)) {
+                        alert('Файл не похож на экспорт Telegram: отсутствует массив messages');
+                        jsonData = null;
+                        return;
+                    }
+                    showFileInfo(file);
+                    convertBtn.disabled = false;
+                    results.classList.remove('show');
+                } catch (err) {
+                    alert('Ошибка при чтении JSON: ' + err.message);
+                    jsonData = null;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showFileInfo(file) {
+            dropContent.style.display = 'none';
+            fileInfo.style.display = 'flex';
+            fileName.textContent = file.name;
+            fileSize.textContent = formatBytes(file.size);
+            dropZone.classList.add('has-file');
+        }
+
+        function clearFile() {
+            jsonData = null;
+            fileInput.value = '';
+            dropContent.style.display = '';
+            fileInfo.style.display = 'none';
+            dropZone.classList.remove('has-file');
+            convertBtn.disabled = true;
+            results.classList.remove('show');
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // ==================== Settings ====================
+
+        settingsToggle.addEventListener('click', () => {
+            settingsToggle.classList.toggle('open');
+            settingsPanel.classList.toggle('open');
+        });
+
+        function getSettings() {
+            return {
+                wordCount: parseInt(document.querySelector('input[name="wordCount"]:checked').value),
+                dateFormat: document.querySelector('input[name="dateFormat"]:checked').value,
+                showTimestamp: document.getElementById('optTimestamp').checked,
+                showAuthor: document.getElementById('optAuthor').checked,
+                showReactions: document.getElementById('optReactions').checked,
+                showPolls: document.getElementById('optPolls').checked,
+                showForwarded: document.getElementById('optForwarded').checked,
+            };
+        }
+
+        // ==================== Conversion ====================
+
+        convertBtn.addEventListener('click', startConversion);
+
+        function startConversion() {
+            if (!jsonData) return;
+
+            const settings = getSettings();
+            convertBtn.disabled = true;
+            progressBar.classList.add('show');
+            results.classList.remove('show');
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Обработка сообщений...';
+
+            // Use setTimeout to allow UI to update
+            setTimeout(() => {
+                try {
+                    const markdown = convertToMarkdown(jsonData, settings);
+                    progressFill.style.width = '60%';
+                    progressText.textContent = 'Разделение на файлы...';
+
+                    setTimeout(() => {
+                        outputFiles = splitByWordCount(markdown, settings.wordCount, jsonData.name || 'chat');
+                        progressFill.style.width = '100%';
+                        progressText.textContent = 'Готово!';
+
+                        setTimeout(() => {
+                            progressBar.classList.remove('show');
+                            showResults(outputFiles);
+                            convertBtn.disabled = false;
+                        }, 400);
+                    }, 50);
+                } catch (err) {
+                    progressBar.classList.remove('show');
+                    convertBtn.disabled = false;
+                    alert('Ошибка конвертации: ' + err.message);
+                }
+            }, 50);
+        }
+
+        function convertToMarkdown(data, settings) {
+            const chatName = data.name || 'Telegram Chat';
+            const messages = data.messages || [];
+            const lines = [];
+
+            lines.push('# ' + chatName);
+            lines.push('');
+
+            let lastDate = '';
+
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i];
+
+                // Skip service messages
+                if (msg.type !== 'message') continue;
+
+                // Skip forwarded if disabled
+                if (!settings.showForwarded && msg.forwarded_from) continue;
+
+                const date = parseDate(msg.date);
+                if (!date) continue;
+
+                const dateStr = formatDate(date, settings.dateFormat);
+
+                // Add date header when day changes
+                if (dateStr !== lastDate) {
+                    if (lastDate) lines.push('');
+                    lines.push('## ' + dateStr);
+                    lines.push('');
+                    lastDate = dateStr;
+                }
+
+                // Build message line
+                const parts = [];
+
+                if (settings.showTimestamp) {
+                    parts.push('[' + formatTime(date) + ']');
+                }
+
+                if (settings.showAuthor && msg.from) {
+                    parts.push('**' + escapeMarkdown(msg.from) + '**:');
+                }
+
+                const text = extractText(msg);
+                if (text) {
+                    parts.push(text);
+                }
+
+                // Media indicators
+                if (msg.photo) parts.push('[Фото]');
+                if (msg.file && !msg.photo) {
+                    const mediaType = getMediaType(msg.media_type || msg.mime_type || '');
+                    parts.push('[' + mediaType + ']');
+                }
+                if (msg.location_information) parts.push('[Геолокация]');
+                if (msg.contact_information) parts.push('[Контакт]');
+                if (msg.sticker_emoji) parts.push(msg.sticker_emoji + ' [Стикер]');
+
+                // Forwarded indicator
+                if (settings.showForwarded && msg.forwarded_from) {
+                    parts.push('(переслано от ' + escapeMarkdown(msg.forwarded_from) + ')');
+                }
+
+                if (parts.length > 0) {
+                    lines.push(parts.join(' '));
+                }
+
+                // Poll
+                if (settings.showPolls && msg.poll) {
+                    lines.push(formatPoll(msg.poll));
+                }
+
+                // Reactions
+                if (settings.showReactions && msg.reactions) {
+                    const reactionsStr = formatReactions(msg.reactions);
+                    if (reactionsStr) lines.push(reactionsStr);
+                }
+            }
+
+            return lines.join('\n');
+        }
+
+        function extractText(msg) {
+            if (!msg.text && msg.text !== '' && msg.text !== 0) return '';
+
+            if (typeof msg.text === 'string') {
+                return msg.text;
+            }
+
+            // Text can be an array of strings and objects (formatted entities)
+            if (Array.isArray(msg.text)) {
+                return msg.text.map(part => {
+                    if (typeof part === 'string') return part;
+                    if (part && typeof part === 'object') {
+                        const t = part.text || '';
+                        switch (part.type) {
+                            case 'bold': return '**' + t + '**';
+                            case 'italic': return '_' + t + '_';
+                            case 'code': return '`' + t + '`';
+                            case 'pre': return '\n```\n' + t + '\n```\n';
+                            case 'link': return '[' + t + '](' + t + ')';
+                            case 'text_link': return '[' + t + '](' + (part.href || t) + ')';
+                            case 'mention': return t;
+                            case 'hashtag': return t;
+                            case 'email': return t;
+                            case 'phone': return t;
+                            case 'strikethrough': return '~~' + t + '~~';
+                            case 'underline': return t;
+                            case 'spoiler': return '||' + t + '||';
+                            case 'custom_emoji': return t;
+                            case 'blockquote': return '> ' + t;
+                            default: return t;
+                        }
+                    }
+                    return '';
+                }).join('');
+            }
+
+            return String(msg.text);
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            // Telegram exports dates as "2023-01-01T12:00:00" or similar
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function formatDate(date, format) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            if (format === 'iso') return y + '-' + m + '-' + d;
+            return d + '.' + m + '.' + y;
+        }
+
+        function formatTime(date) {
+            return String(date.getHours()).padStart(2, '0') + ':' +
+                   String(date.getMinutes()).padStart(2, '0');
+        }
+
+        function escapeMarkdown(text) {
+            // Escape characters that would break markdown formatting
+            return text.replace(/[\\*_~`|]/g, '\\$&');
+        }
+
+        function getMediaType(mime) {
+            if (mime.startsWith('video') || mime === 'video_file') return 'Видео';
+            if (mime.startsWith('audio') || mime === 'voice_message' || mime === 'audio_file') return 'Аудио';
+            if (mime === 'animation') return 'GIF';
+            if (mime === 'sticker') return 'Стикер';
+            return 'Файл';
+        }
+
+        function formatPoll(poll) {
+            if (!poll) return '';
+            const lines = ['📊 **Опрос:** ' + (poll.question || '')];
+            if (poll.answers && Array.isArray(poll.answers)) {
+                poll.answers.forEach(a => {
+                    const votes = a.voters || 0;
+                    const chosen = a.chosen ? ' ✅' : '';
+                    lines.push('  - ' + (a.text || '') + ' (' + votes + ')' + chosen);
+                });
+            }
+            if (poll.total_voters !== undefined) {
+                lines.push('  _Всего голосов: ' + poll.total_voters + '_');
+            }
+            return lines.join('\n');
+        }
+
+        function formatReactions(reactions) {
+            if (!reactions || !Array.isArray(reactions)) return '';
+            const parts = reactions.map(r => {
+                const emoji = r.emoji || (r.type === 'emoji' ? r.emoji : '');
+                const count = r.count || 1;
+                return emoji + (count > 1 ? '×' + count : '');
+            }).filter(Boolean);
+            if (parts.length === 0) return '';
+            return '  Реакции: ' + parts.join(' ');
+        }
+
+        // ==================== Splitting ====================
+
+        function splitByWordCount(text, maxWords, chatName) {
+            const lines = text.split('\n');
+            const chunks = [];
+            let currentChunk = [];
+            let currentWordCount = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const lineWords = countWords(line);
+
+                // If adding this line would exceed the limit and we have content
+                if (currentWordCount + lineWords > maxWords && currentChunk.length > 0) {
+                    chunks.push(currentChunk.join('\n'));
+                    currentChunk = [];
+                    currentWordCount = 0;
+                }
+
+                currentChunk.push(line);
+                currentWordCount += lineWords;
+            }
+
+            // Last chunk
+            if (currentChunk.length > 0) {
+                chunks.push(currentChunk.join('\n'));
+            }
+
+            // Create file objects
+            const safeName = chatName.replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]/g, '_').substring(0, 50);
+            return chunks.map((content, index) => {
+                const suffix = chunks.length > 1 ? '_part' + (index + 1) : '';
+                return {
+                    name: safeName + suffix + '.md',
+                    content: content,
+                    words: countWords(content),
+                    size: new Blob([content]).size,
+                };
+            });
+        }
+
+        function countWords(text) {
+            return text.split(/\s+/).filter(w => w.length > 0).length;
+        }
+
+        // ==================== Results ====================
+
+        function showResults(files) {
+            results.classList.add('show');
+            const totalWords = files.reduce((sum, f) => sum + f.words, 0);
+            resultsStats.textContent = files.length + ' файл(ов) · ' +
+                formatNumber(totalWords) + ' слов';
+
+            fileList.innerHTML = '';
+            files.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <div class="file-item-info">
+                        <span class="file-item-icon">📄</span>
+                        <div>
+                            <div class="file-item-name">${escapeHtml(file.name)}</div>
+                            <div class="file-item-size">${formatNumber(file.words)} слов · ${formatBytes(file.size)}</div>
+                        </div>
+                    </div>
+                    <button class="file-item-download" data-index="${index}">Скачать</button>
+                `;
+                fileList.appendChild(item);
+            });
+
+            // Bind download buttons
+            fileList.querySelectorAll('.file-item-download').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.index);
+                    downloadFile(outputFiles[idx]);
+                });
+            });
+        }
+
+        function formatNumber(n) {
+            return n.toLocaleString('ru-RU');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ==================== Download ====================
+
+        downloadAllBtn.addEventListener('click', () => {
+            if (outputFiles.length === 1) {
+                downloadFile(outputFiles[0]);
+            } else {
+                downloadAllAsZip();
+            }
+        });
+
+        function downloadFile(file) {
+            const blob = new Blob([file.content], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadAllAsZip() {
+            // Simple approach: download files one by one if no zip library
+            // For a better UX, we'd use JSZip, but keeping it dependency-free
+            outputFiles.forEach((file, i) => {
+                setTimeout(() => downloadFile(file), i * 200);
+            });
+        }
+
+    })();
+    </script>
+</body>
+</html>
